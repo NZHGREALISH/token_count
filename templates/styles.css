@@ -1,0 +1,45 @@
+.token-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 10px;
+    background-color: #f8f9fa;
+}
+.token-item {
+    margin-bottom: 4px;
+    padding: 4px;
+    border-bottom: 1px solid #eee;
+}
+.comparison-card {
+    margin-top: 20px;
+    border-left: 4px solid #007bff;
+}
+.chart-container {
+    height: 300px;
+    margin-top: 20px;
+}
+.chinese-text {
+    font-family: 'Microsoft YaHei', 'SimHei', 'STHeiti', sans-serif;
+}
+.token-text {
+    background-color: #e9ecef;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    word-break: break-all;
+}
+.token-formatted {
+    word-break: break-all;
+    font-family: monospace;
+    line-height: 1.6;
+}
+
+.decoded-text {
+    white-space: pre-wrap;
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+}

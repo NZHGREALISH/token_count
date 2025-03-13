@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Analyzer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Token Analyzer (使用tiktoken)</h1>
+        
+        {% if error %}
+        <div class="alert alert-danger">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">单条文本分析 Single Text Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="inputText" class="form-label">输入文本 (Input Text)</label>
+                            <textarea id="inputText" class="form-control chinese-text" rows="4" placeholder="请在此输入文本..."></textarea>
+                        </div>
+                        <button id="analyzeBtn" class="btn btn-primary">分析 (Analyze)</button>
+                        
+                        <div id="resultContainer" class="mt-4" style="display: none;">
+                            <h5>分析结果 (Analysis Results)</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header">基本统计 (Basic Statistics)</div>
+                                        <div class="card-body">
+                                            <p><strong>字符数 (Characters):</strong> <span id="charCount">0</span></p>
+                                            <p><strong>Token 数量 (Token Count):</strong> <span id="tokenCount">0</span></p>
+                                            <p><strong>每字符 Token 数 (Tokens per Character):</strong> <span id="tokensPerChar">0</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">Token 详情 (Token Details)</div>
+                                        <div class="card-body">
+                                            <div id="tokenList" class="token-list"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">文本对比 (Text Comparison)</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="compareForm" action="/compare/" method="post">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="text1" class="form-label">文本 1 (Text 1)</label>
+                                    <textarea name="text1" id="text1" class="form-control chinese-text" rows="4" placeholder="请在此输入文本 1...">{% if text1 %}{{ text1 }}{% endif %}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="text2" class="form-label">文本 2 (Text 2)</label>
+                                    <textarea name="text2" id="text2" class="form-control chinese-text" rows="4" placeholder="请在此输入文本 2...">{% if text2 %}{{ text2 }}{% endif %}</textarea>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">对比 (Compare)</button>
+                        </form>
+                        
+                        {% if result1 and result2 %}
+                        <div class="comparison-results mt-4">
+                            <h5>对比结果 (Comparison Results)</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header">文本 1 (Text 1)</div>
+                                        <div class="card-body">
+                                            <p><strong>字符数 (Characters):</strong> {{ result1.characters }}</p>
+                                            <p><strong>Token 数量 (Token Count):</strong> {{ result1.token_count }}</p>
+                                            <p><strong>每字符 Token 数 (Tokens per Character):</strong> {{ "%.4f"|format(result1.tokens_per_character) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header">文本 2 (Text 2)</div>
+                                        <div class="card-body">
+                                            <p><strong>字符数 (Characters):</strong> {{ result2.characters }}</p>
+                                            <p><strong>Token 数量 (Token Count):</strong> {{ result2.token_count }}</p>
+                                            <p><strong>每字符 Token 数 (Tokens per Character):</strong> {{ "%.4f"|format(result2.tokens_per_character) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card comparison-card">
+                                <div class="card-header">差异分析 (Difference Analysis)</div>
+                                <div class="card-body">
+                                    <p>
+                                        <strong>Token 数量差异 (Token Count Difference):</strong> 
+                                        {{ comparison.token_count_diff }} 
+                                        ({{ "%.2f"|format(comparison.token_count_percentage) }}%)
+                                    </p>
+                                    <p>
+                                        <strong>字符数差异 (Character Count Difference):</strong> 
+                                        {{ comparison.character_diff }} 
+                                        ({{ "%.2f"|format(comparison.character_percentage) }}%)
+                                    </p>
+                                    <p>
+                                        <strong>效率差异 (Efficiency Difference):</strong> 
+                                        {{ "%.4f"|format(comparison.efficiency_diff) }} tokens/character
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <canvas id="comparisonChart"></canvas>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">批量分析 (Bulk Analysis)</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>上传文本文件进行批量分析（每行作为一个条目）</p>
+                        <p>Upload a text file for bulk analysis (each line as a separate entry)</p>
+                        
+                        <div class="mb-3">
+                            <input type="file" id="fileInput" class="form-control" accept=".txt,.csv">
+                        </div>
+                        <button id="bulkAnalyzeBtn" class="btn btn-warning">分析文件 (Analyze File)</button>
+                        
+                        <div id="bulkResults" class="mt-4" style="display: none;">
+                            <!-- Results will be displayed here -->
+                        </div>
+                        
+                        <div id="bulkChart" class="chart-container mt-4">
+                            <!-- Chart will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4 mb-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Tokenizer 信息 (Tokenizer Information)</h5>
+                    </div>
+                    <div class="card-body" id="tokenizerInfo">
+                        <p>加载中... (Loading...)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script>
+        // Token Analyzer functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Single text analysis
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (analyzeBtn) {
+                analyzeBtn.addEventListener('click', function() {
+                    const text = document.getElementById('inputText').value;
+                    if (!text) {
+                        alert('请输入文本进行分析 (Please enter text for analysis)');
+                        return;
+                    }
+                    
+                    analyzeText(text);
+                });
+            }
+            
+            // Setup file for bulk analysis
+            const fileInput = document.getElementById('fileInput');
+            const bulkAnalyzeBtn = document.getElementById('bulkAnalyzeBtn');
+            
+            if (fileInput && bulkAnalyzeBtn) {
+                bulkAnalyzeBtn.addEventListener('click', function() {
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        alert('请选择文件 (Please select a file)');
+                        return;
+                    }
+                    
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const contents = e.target.result;
+                        processBulkAnalysis(contents);
+                    };
+                    
+                    reader.onerror = function() {
+                        alert('读取文件时出错 (Error reading file)');
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }
+            
+            // Function to analyze single text
+            function analyzeText(text) {
+                // Show loading indicator
+                const resultContainer = document.getElementById('resultContainer');
+                if (resultContainer) {
+                    resultContainer.innerHTML = '<p class="text-center">分析中... (Analyzing...)</p>';
+                    resultContainer.style.display = 'block';
+                }
+                
+                // Send request to API
+                fetch('/tokenize/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: text })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Analysis failed');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySingleAnalysisResult(data);
+                })
+                .catch(error => {
+                    console.error('Error analyzing text:', error);
+                    if (resultContainer) {
+                        resultContainer.innerHTML = `<div class="alert alert-danger">分析失败 (Analysis failed): ${error.message}</div>`;
+                    }
+                });
+            }
+            
+            // Function to display single analysis result
+            function displaySingleAnalysisResult(data) {
+                const resultContainer = document.getElementById('resultContainer');
+                if (!resultContainer) return;
+                
+                // Reset container
+                resultContainer.innerHTML = '';
+                
+                // Create result HTML
+                const resultHTML = `
+                    <h5>分析结果 (Analysis Results)</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">基本统计 (Basic Statistics)</div>
+                                <div class="card-body">
+                                    <p><strong>字符数 (Characters):</strong> <span id="charCount">${data.characters}</span></p>
+                                    <p><strong>Token 数量 (Token Count):</strong> <span id="tokenCount">${data.token_count}</span></p>
+                                    <p><strong>每字符 Token 数 (Tokens per Character):</strong> <span id="tokensPerChar">${data.tokens_per_character.toFixed(4)}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Token 详情 (Token Details)</div>
+                                <div class="card-body">
+                                    <div id="tokenList" class="token-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                resultContainer.innerHTML = resultHTML;
+                resultContainer.style.display = 'block';
+                
+                // Display token details
+                const tokenListEl = document.getElementById('tokenList');
+                if (tokenListEl) {
+                    if (data.token_details && data.token_details.length > 0) {
+                        data.token_details.forEach((token, index) => {
+                            tokenListEl.innerHTML += `
+                                <div class="token-item">
+                                    <strong>${index + 1}.</strong> ID: ${token.id} - 
+                                    Text: <span class="token-text">${escapeHtml(token.text)}</span>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        // If token details are not available, just show the IDs
+                        data.tokens.forEach((tokenId, index) => {
+                            tokenListEl.innerHTML += `
+                                <div class="token-item">
+                                    <strong>${index + 1}.</strong> ID: ${tokenId}
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            }
+            
+            // Function to process bulk analysis
+            function processBulkAnalysis(contents) {
+                // Split by lines
+                const lines = contents.split(/\r?\n/).filter(line => line.trim() !== '');
+                
+                if (lines.length === 0) {
+                    alert('文件为空 (File is empty)');
+                    return;
+                }
+                
+                // Show loading indicator
+                const bulkResultsDiv = document.getElementById('bulkResults');
+                if (bulkResultsDiv) {
+                    bulkResultsDiv.innerHTML = '<p>处理中... (Processing...)</p>';
+                    bulkResultsDiv.style.display = 'block';
+                }
+                
+                // Process each line
+                const promises = lines.map(line => {
+                    return fetch('/tokenize/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ text: line })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Analysis failed');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        return {
+                            text: line,
+                            ...data
+                        };
+                    })
+                    .catch(error => {
+                        console.error('Error analyzing text:', error);
+                        return {
+                            text: line,
+                            error: 'Failed to analyze'
+                        };
+                    });
+                });
+                
+                // Wait for all requests to complete
+                Promise.all(promises)
+                    .then(results => {
+                        displayBulkResults(results);
+                    })
+                    .catch(error => {
+                        console.error('Error in bulk analysis:', error);
+                        alert('批量分析时出错 (Error during bulk analysis)');
+                    });
+            }
+            
+            // Function to display bulk analysis results
+            function displayBulkResults(results) {
+                const bulkResultsDiv = document.getElementById('bulkResults');
+                if (!bulkResultsDiv) return;
+                
+                // Clear previous results
+                bulkResultsDiv.innerHTML = '';
+                
+                // Create table
+                const table = document.createElement('table');
+                table.className = 'table table-striped table-bordered';
+                
+                // Create table header
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr>
+                        <th>#</th>
+                        <th>文本 (Text)</th>
+                        <th>字符数 (Characters)</th>
+                        <th>Token 数量 (Token Count)</th>
+                        <th>每字符 Token 数 (Tokens per Character)</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+                
+                // Create table body
+                const tbody = document.createElement('tbody');
+                
+                // Calculate averages
+                let totalChars = 0;
+                let totalTokens = 0;
+                
+                // Add rows for each result
+                results.forEach((result, index) => {
+                    const row = document.createElement('tr');
+                    
+                    if (result.error) {
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${escapeHtml(result.text)}</td>
+                            <td colspan="3" class="text-danger">${result.error}</td>
+                        `;
+                    } else {
+                        // Add to totals for average calculation
+                        totalChars += result.characters;
+                        totalTokens += result.token_count;
+                        
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${escapeHtml(result.text)}</td>
+                            <td>${result.characters}</td>
+                            <td>${result.token_count}</td>
+                            <td>${result.tokens_per_character.toFixed(4)}</td>
+                        `;
+                    }
+                    
+                    tbody.appendChild(row);
+                });
+                
+                table.appendChild(tbody);
+                
+                // Create summary statistics
+                const avgTokensPerChar = totalTokens / totalChars;
+                const summary = document.createElement('div');
+                summary.className = 'card mt-3';
+                summary.innerHTML = `
+                    <div class="card-header">汇总统计 (Summary Statistics)</div>
+                    <div class="card-body">
+                        <p><strong>总行数 (Total Lines):</strong> ${results.length}</p>
+                        <p><strong>总字符数 (Total Characters):</strong> ${totalChars}</p>
+                        <p><strong>总 Token 数量 (Total Token Count):</strong> ${totalTokens}</p>
+                        <p><strong>平均每字符 Token 数 (Average Tokens per Character):</strong> ${avgTokensPerChar.toFixed(4)}</p>
+                    </div>
+                `;
+                
+                // Add to results div
+                bulkResultsDiv.appendChild(table);
+                bulkResultsDiv.appendChild(summary);
+                
+                // Create visualization
+                createBulkVisualization(results);
+            }
+            
+            // Function to create visualization for bulk analysis
+            function createBulkVisualization(results) {
+                const bulkChartDiv = document.getElementById('bulkChart');
+                if (!bulkChartDiv) return;
+                
+                // Prepare data for chart
+                const chartData = results.map((result, index) => {
+                    if (result.error) return null;
+                    
+                    return {
+                        index: index + 1,
+                        characters: result.characters,
+                        tokens: result.token_count,
+                        efficiency: result.tokens_per_character
+                    };
+                }).filter(item => item !== null);
+                
+                // If no valid data, exit
+                if (chartData.length === 0) return;
+                
+                // Create chart canvas if it doesn't exist
+                let chartCanvas = document.getElementById('bulkAnalysisChart');
+                if (!chartCanvas) {
+                    chartCanvas = document.createElement('canvas');
+                    chartCanvas.id = 'bulkAnalysisChart';
+                    bulkChartDiv.appendChild(chartCanvas);
+                }
+                
+                // Create chart
+                new Chart(chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.map(item => item.index),
+                        datasets: [
+                            {
+                                label: '字符数 (Characters)',
+                                data: chartData.map(item => item.characters),
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                tension: 0.1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Token 数量 (Token Count)',
+                                data: chartData.map(item => item.tokens),
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                tension: 0.1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '每字符 Token 数 (Tokens per Character)',
+                                data: chartData.map(item => item.efficiency),
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                tension: 0.1,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: '数量 (Count)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                title: {
+                                    display: true,
+                                    text: '效率 (Efficiency)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            if (context.datasetIndex === 2) {
+                                                label += context.parsed.y.toFixed(4);
+                                            } else {
+                                                label += context.parsed.y;
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'top'
+                            },
+                            title: {
+                                display: true,
+                                text: '批量分析结果 (Bulk Analysis Results)'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Load tokenizer info
+            function loadTokenizerInfo() {
+                const tokenizerInfoDiv = document.getElementById('tokenizerInfo');
+                if (!tokenizerInfoDiv) return;
+                
+                fetch('/tokenizer-info/')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to load tokenizer info');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        let infoHTML = '';
+                        
+                        infoHTML += `<p><strong>分词器名称 (Tokenizer Name):</strong> ${data.name}</p>`;
+                        infoHTML += `<p><strong>词汇量 (Vocabulary Size):</strong> ${data.vocab_size}</p>`;
+                        
+                        if (data.sample_tokens) {
+                            infoHTML += `<div class="mt-3">
+                                <h6>词汇示例 (Token Examples)</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>文本 (Text)</th>
+                                                <th>Token IDs</th>
+                                                <th>解码 (Decoded)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
+                                        
+                            for (const [text, info] of Object.entries(data.sample_tokens)) {
+                                infoHTML += `<tr>
+                                    <td>${escapeHtml(text)}</td>
+                                    <td>${info.token_ids.join(', ')}</td>
+                                    <td>`;
+                                
+                                info.decoded.forEach(token => {
+                                    infoHTML += `<span class="token-text">${escapeHtml(token)}</span> `;
+                                });
+                                
+                                infoHTML += `</td>
+                                </tr>`;
+                            }
+                            
+                            infoHTML += `</tbody>
+                                    </table>
+                                </div>
+                            </div>`;
+                        }
+                        
+                        tokenizerInfoDiv.innerHTML = infoHTML;
+                    })
+                    .catch(error => {
+                        console.error('Error loading tokenizer info:', error);
+                        tokenizerInfoDiv.innerHTML = `<div class="alert alert-danger">加载 Tokenizer 信息失败 (Failed to load tokenizer info): ${error.message}</div>`;
+                    });
+            }
+            
+            // Run on page load
+            loadTokenizerInfo();
+            
+            // Helper function to escape HTML
+            function escapeHtml(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+            
+            // Event listener for Enter key in single text analysis
+            const inputTextEl = document.getElementById('inputText');
+            if (inputTextEl) {
+                inputTextEl.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        document.getElementById('analyzeBtn').click();
+                    }
+                });
+            }
+            
+            // Initialize chart for comparison results if available
+            {% if result1 and result2 %}
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['字符数 (Characters)', 'Token 数量 (Token Count)', '每字符 Token 数 (Tokens per Character)'],
+                    datasets: [
+                        {
+                            label: '文本 1 (Text 1)',
+                            data: [
+                                {{ result1.characters }},
+                                {{ result1.token_count }},
+                                {{ result1.tokens_per_character }}
+                            ],
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '文本 2 (Text 2)',
+                            data: [
+                                {{ result2.characters }},
+                                {{ result2.token_count }},
+                                {{ result2.tokens_per_character }}
+                            ],
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            {% endif %}
+        });
+    </script>
+</body>
+</html>
